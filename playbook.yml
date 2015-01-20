@@ -8,12 +8,12 @@
       apt: name=openjdk-7-jdk update_cache=yes
       sudo: yes
 
-    # -bashrc
-    - name: Copy .bashrc
-      copy: src=config/system/.bashrc dest=/home/vagrant
+    # Supervisor
+    - name: Installing supervisor
+      apt: name=supervisor
+      sudo: yes
 
-    - name: reload environment
-      raw: source /home/vagrant/.bashrc
+    - shell: service supervisor start
 
     # Apache Flume
     - name: Download Apache Flume
@@ -21,10 +21,6 @@
 
     - name: Create Apache Flume directory
       command: mkdir /opt/flume
-      sudo: yes
-
-    - name: Change ownership of /opt/flume/
-      command: chown -R vagrant:vagrant /opt/flume/
       sudo: yes
 
     - name: Extract Apache Flume
@@ -35,14 +31,10 @@
 
     # Apache Hadoop
     - name: Download Apache Hadoop
-      get_url: url=http://apache.rediris.es/hadoop/common/hadoop-2.6.0/hadoop-2.6.0.tar.gz dest=/tmp
+      get_url: url=http://ftp.cixug.es/apache/hadoop/common/hadoop-2.6.0/hadoop-2.6.0.tar.gz dest=/tmp
 
     - name: Create Apache Hadoop directory
       command: mkdir /opt/hadoop
-      sudo: yes
-
-    - name: Change ownership of /opt/hadoop/
-      command: chown -R vagrant:vagrant /opt/hadoop/
       sudo: yes
 
     - name: Extract Apache Hadoop
@@ -64,14 +56,14 @@
       command: mkdir /home/hdfs/
       sudo: yes
 
-    - command: chown vagrant:vagrant /home/hdfs/
-      sudo: yes
-
     - name: Generate the ssh-keygen
-      shell: ssh-keygen -t dsa -P '' -f /home/vagrant/.ssh/id_dsa
+      shell: ssh-keygen -t dsa -P '' -f /root/.ssh/id_dsa
 
     - name: Authorize public ssh-keygen
-      shell: cat /home/vagrant/.ssh/id_dsa.pub >> /home/vagrant/.ssh/authorized_keys
+      shell: cat /root/.ssh/id_dsa.pub >> /root/.ssh/authorized_keys
+
+    - shell: ssh-keyscan localhost >> ~/.ssh/known_hosts
+    - shell: ssh-keyscan 0.0.0.0 >> ~/.ssh/known_hosts
 
     - name: Installing expect
       apt: name=expect
@@ -83,8 +75,8 @@
         PATH: /opt/hbase/current:/opt/hbase/current/bin:/opt/hadoop/current/:/opt/hadoop/current/bin:/opt/hadoop/current/sbin:/opt/flume/current:/opt/flume/current/bin:{{ ansible_env.PATH }}
         JAVA_HOME: /usr/lib/jvm/java-7-openjdk-amd64
 
-    - name: Initializing HDFS
-      script: scripts/config-hadoop.sh
+    - name: Starting HDFS
+      shell: start-dfs.sh
       environment:
         PATH: /opt/hbase/current:/opt/hbase/current/bin:/opt/hadoop/current/:/opt/hadoop/current/bin:/opt/hadoop/current/sbin:/opt/flume/current:/opt/flume/current/bin:{{ ansible_env.PATH }}
         JAVA_HOME: /usr/lib/jvm/java-7-openjdk-amd64
@@ -99,16 +91,25 @@
         PATH: /opt/hbase/current:/opt/hbase/current/bin:/opt/hadoop/current/:/opt/hadoop/current/bin:/opt/hadoop/current/sbin:/opt/flume/current:/opt/flume/current/bin:{{ ansible_env.PATH }}
         JAVA_HOME: /usr/lib/jvm/java-7-openjdk-amd64
 
+    - name: Stopping HDFS
+      shell: stop-dfs.sh
+      environment:
+        PATH: /opt/hbase/current:/opt/hbase/current/bin:/opt/hadoop/current/:/opt/hadoop/current/bin:/opt/hadoop/current/sbin:/opt/flume/current:/opt/flume/current/bin:{{ ansible_env.PATH }}
+        JAVA_HOME: /usr/lib/jvm/java-7-openjdk-amd64
+
+    - name: Copying hdfs.conf
+      copy: src=config/supervisor/hdfs.conf dest=/etc/supervisor/conf.d/
+
+    - name: Restarting supervisor
+      shell: supervisorctl reread
+    - shell: supervisorctl update
+
     # Apache HBase
     - name: Download Apache HBase
-      get_url: url=http://apache.rediris.es/hbase/stable/hbase-0.98.9-hadoop2-bin.tar.gz dest=/tmp
+      get_url: url=http://ftp.cixug.es/apache/hbase/stable/hbase-0.98.9-hadoop2-bin.tar.gz dest=/tmp
 
     - name: Create Apache HBase directory
       command: mkdir /opt/hbase
-      sudo: yes
-
-    - name: Change ownership of /opt/hbase/
-      command: chown -R vagrant:vagrant /opt/hbase/
       sudo: yes
 
     - name: Extract Apache HBase
@@ -123,25 +124,10 @@
     - name: Copy hbase-env.sh
       copy: src=config/hbase/hbase-env.sh dest=/opt/hbase/current/conf/
 
-    - name: Start HBase
-      shell: start-hbase.sh
-      environment:
-        PATH: opt/hbase/current:/opt/hbase/current/bin:/opt/hadoop/current/:/opt/hadoop/current/bin:/opt/hadoop/current/sbin:/opt/flume/current:/opt/flume/current/bin:{{ ansible_env.PATH }}
-        JAVA_HOME: /usr/lib/jvm/java-7-openjdk-amd64
-
-      # Preparing init scripts
-    - name: Preparing init scripts
-      command: mkdir /home/vagrant/scripts
-
-    - copy: src=scripts/start-cluster.sh dest=/home/vagrant/scripts
-
-    - command: chmod +x /home/vagrant/scripts/start-cluster.sh
-
-    - copy: src=scripts/crontab dest=/home/vagrant/scripts
-
-    - shell: crontab -u vagrant /home/vagrant/scripts/crontab
-
-      # Create tables, launch flume
+    - name: Configuring supervisor for HBase
+      copy: src=config/supervisor/hbase.conf dest=/etc/supervisor/conf.d/
+    - shell: supervisorctl reread
+    - shell: supervisorctl update
 
     - name: Creating HBase tables
       shell: echo "create 'foo_table', 'bar_cf'" | hbase shell
@@ -150,12 +136,8 @@
         JAVA_HOME: /usr/lib/jvm/java-7-openjdk-amd64
 
     - name: Copying Flume config files
-      command: mkdir /home/vagrant/flume
-    - copy: src=config/flume/sicafe.conf dest=/home/vagrant/flume/
-
-    - name: Installing supervisor
-      apt: name=supervisor
-      sudo: yes
+      command: mkdir /root/flume
+    - copy: src=config/flume/sicafe.conf dest=/root/flume/
 
     - name: Copying Flume configuration file for supervisor
       copy: src=config/supervisor/flume.conf dest=/etc/supervisor/conf.d/

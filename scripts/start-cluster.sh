@@ -1,4 +1,4 @@
 #! /bin/sh
 
-start-dfs.sh
-start-hbase.sh
+/opt/hadoop/current/sbin/start-dfs.sh
+/opt/hbase/current/bin/start-hbase.sh

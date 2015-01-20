@@ -1,4 +1,4 @@
 JAVA_HOME=/usr/lib/jvm/java-7-openjdk-amd64
 PATH=/opt/hbase/current:/opt/hbase/current/bin:/opt/hadoop/current/:/opt/hadoop/current/bin:/opt/hadoop/current/sbin:/opt/flume/current:/opt/flume/current/bin:$PATH
 
-@reboot         vagrant /home/vagrant/scripts/start-cluster.sh
+@reboot         vagrant /root/scripts/start-cluster.sh
