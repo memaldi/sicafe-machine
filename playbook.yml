@@ -29,6 +29,9 @@
     - name: Create Apache Flume current link
       command: ln -s /opt/flume/apache-flume-1.5.2-bin /opt/flume/current
 
+    - name: Copying Apache Flume environment
+      copy: src=config/flume/flume-env.sh dest=/opt/flume/current/conf/
+
     # Apache Hadoop
     - name: Download Apache Hadoop
       get_url: url=http://ftp.cixug.es/apache/hadoop/common/hadoop-2.6.0/hadoop-2.6.0.tar.gz dest=/tmp
