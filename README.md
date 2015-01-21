@@ -11,5 +11,16 @@ vagrant up --provider=docker
 If you need to boot the machine after halting it:
 
 vagrant up
+
 vagrant ssh
+
 service supervisor start
+
+
+WARNING
+-------
+
+It's probably you want change the default password at Dockerfile:
+
+RUN echo 'root:**screencast**' | chpasswd
+
